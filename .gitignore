@@ -1,0 +1,47 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+publish/
+*.nupkg
+*.snupkg
+
+# .NET user and IDE state
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+
+# Test results and coverage
+TestResults/
+**/TestResults/
+coverage/
+**/coverage/
+coverage.xml
+coverage.cobertura.xml
+coverage.opencover.xml
+*.coverage
+*.coveragexml
+*.trx
+
+# NuGet
+packages/
+*.nuget.props
+*.nuget.targets
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Project
+*.log
+.treesync/
