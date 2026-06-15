@@ -39,26 +39,24 @@ jobs:
       - name: Restore
         run: dotnet restore src/TreeSync.Cli/TreeSync.Cli.csproj
 
-      - name: Build & Publish
+      - name: Publish
         run: |
           dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
-            -p:Version=${{ github.run_number }} \
             -o publish/${{ matrix.rid }}
 
-      - name: Package (versioned artifact)
+      - name: Package (versioned placeholder)
         run: |
-          VERSION=${{ github.run_number }}
           cd publish/${{ matrix.rid }}
-          zip -r ../../TreeSync-v${VERSION}-${{ matrix.rid }}.zip .
+          zip -r ../../TreeSync-${{ matrix.rid }}.zip .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TreeSync-v${{ github.run_number }}-${{ matrix.rid }}
+          name: TreeSync-${{ matrix.rid }}
           path: TreeSync-*.zip
 
 

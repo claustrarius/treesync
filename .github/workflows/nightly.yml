@@ -36,12 +36,14 @@ jobs:
 
       - name: Publish (nightly)
         run: |
+          VERSION=1.0.0-nightly.${{ github.run_number }}
+
           dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
-            -p:Version=nightly-${{ github.run_number }} \
+            -p:Version=$VERSION \
             -o publish/${{ matrix.rid }}
 
       - name: Package nightly
