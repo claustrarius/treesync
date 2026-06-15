@@ -23,9 +23,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish src/TreeSync \
-            -c Release \
-            -o publish
+          dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj -c Release -o publish
 
       - name: Package
         run: |
