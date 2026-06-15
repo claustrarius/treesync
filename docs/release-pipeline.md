@@ -1,250 +1,146 @@
-# GitHub Release Pipeline für TreeSync
+# TreeSync Release Pipeline
 
-## Ziel
-
-TreeSync wird als Open-Source-Projekt auf GitHub veröffentlicht. Bei jedem Release sollen automatisch ausführbare Artefakte erzeugt und als GitHub Release bereitgestellt werden.
-
-### Anforderungen
-
-* Build mit .NET 10
-* Automatische Builds für Pull Requests und Main Branch
-* Tag-basierte Releases
-* Veröffentlichung von ausführbaren Binärdateien
-* Bereitstellung der Artefakte über GitHub Releases
-* Plattformübergreifende Distribution
+Dieses Dokument beschreibt den offiziellen Release-Prozess für TreeSync.
 
 ---
 
-# Build-Workflow
+# 🔄 Überblick
 
-Der Build-Workflow wird bei Pushes auf den Main Branch und bei Pull Requests ausgeführt.
+TreeSync verwendet eine GitHub Actions basierte CI/CD Pipeline.
+Der Prozess ist vollständig tag-getrieben:
 
-## Aufgaben
+```
+git tag v1.2.3
+git push origin v1.2.3
+```
 
-* Quellcode auschecken
-* .NET SDK 10 installieren
-* Restore aller Abhängigkeiten
-* Projekt kompilieren
-* Unit-Tests ausführen
+→ triggert automatisch einen Release
 
-## Beispiel
+---
 
-```yaml
-name: Build
+# ⚙️ Build Pipeline (CI)
 
-on:
-  push:
-    branches:
-      - main
+Bei jedem Push auf `main` und bei Pull Requests:
 
-  pull_request:
+- Restore
+- Build (Release)
+- Tests ausführen
 
-jobs:
-  build:
+Kein Publish erfolgt in dieser Phase.
 
-    runs-on: ubuntu-latest
+---
 
-    steps:
-      - uses: actions/checkout@v4
+# 🚀 Release Pipeline
 
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
+Die Release Pipeline wird durch Git Tags ausgelöst:
 
-      - run: dotnet restore
+```
+v1.0.0
+v1.1.0
+v2.0.0
+```
 
-      - run: dotnet build -c Release --no-restore
+## Ablauf
 
-      - run: dotnet test -c Release --no-build
+1. Git Tag wird gepusht
+2. GitHub Actions startet Matrix Build
+3. Builds werden erstellt für:
+
+- win-x64
+- linux-x64
+- linux-arm64
+- osx-arm64
+
+4. Jede Plattform wird:
+
+- published (`dotnet publish`)
+- self-contained gebaut
+- single-file executable erzeugt
+- in ZIP archiviert
+
+---
+
+# 📦 Output Artefakte
+
+Nach dem Release entstehen folgende Dateien:
+
+```
+TreeSync-1.0.0-win-x64.zip
+TreeSync-1.0.0-linux-x64.zip
+TreeSync-1.0.0-linux-arm64.zip
+TreeSync-1.0.0-osx-arm64.zip
+```
+
+Jede ZIP enthält:
+
+- TreeSync executable
+- benötigte runtime files (falls vorhanden)
+- Konfigurationsdateien
+
+---
+
+# 🧪 Runtime
+
+TreeSync ist:
+
+- self-contained
+- benötigt keine .NET Installation
+- direkt ausführbar
+
+---
+
+# 🏷 Versionierung
+
+Die Version wird ausschließlich über Git Tags definiert:
+
+```
+vMAJOR.MINOR.PATCH
+```
+
+Beispiel:
+
+```
+v1.3.0
 ```
 
 ---
 
-# Release-Workflow
+# 📤 Release Erstellung
 
-Releases werden über Git-Tags erstellt.
+Release erfolgt automatisch via GitHub Actions:
 
-## Release erstellen
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Nach dem Push des Tags startet automatisch die Release-Pipeline.
+- GitHub Release wird erstellt
+- Artefakte werden angehängt
+- Automatische Release Notes werden generiert
 
 ---
 
-# Veröffentlichungsstrategie
+# 🧠 Designentscheidungen
 
-TreeSync wird als selbstständige Anwendung ausgeliefert.
-
-Verwendet wird:
-
-* Self-Contained Deployment
-* Single-File Publishing
-* Release Build
-
-Dadurch benötigen Anwender keine separat installierte .NET Runtime.
+- Kein NuGet Paket
+- Fokus auf CLI/EXE Distribution
+- Cross-platform Builds
+- Self-contained deployment
+- Single-file binaries für einfache Nutzung
 
 ---
 
-# Unterstützte Plattformen
+# 🔐 Reproduzierbarkeit
 
-| Plattform   | Runtime Identifier |
-| ----------- | ------------------ |
-| Windows x64 | win-x64            |
-| Linux x64   | linux-x64          |
-| Linux ARM64 | linux-arm64        |
-| macOS ARM64 | osx-arm64          |
+Alle Builds sind deterministisch über:
 
----
-
-# Publish-Konfiguration
-
-## Windows
-
-```bash
-dotnet publish \
-  -c Release \
-  -r win-x64 \
-  --self-contained true \
-  -p:PublishSingleFile=true
-```
-
-## Linux
-
-```bash
-dotnet publish \
-  -c Release \
-  -r linux-x64 \
-  --self-contained true \
-  -p:PublishSingleFile=true
-```
-
-## Linux ARM64
-
-```bash
-dotnet publish \
-  -c Release \
-  -r linux-arm64 \
-  --self-contained true \
-  -p:PublishSingleFile=true
-```
-
-## macOS ARM64
-
-```bash
-dotnet publish \
-  -c Release \
-  -r osx-arm64 \
-  --self-contained true \
-  -p:PublishSingleFile=true
-```
+- Git Tag
+- Fixed SDK Version (.NET 10)
+- GitHub Actions Runner
 
 ---
 
-# Erwartete Artefakte
+# 🚀 Optional (empfohlen für später)
 
-Für jedes Release werden folgende Dateien erzeugt:
+Für "Enterprise-grade" als nächste Schritte:
 
-```text
-TreeSync-v1.0.0-win-x64.zip
-TreeSync-v1.0.0-linux-x64.tar.gz
-TreeSync-v1.0.0-linux-arm64.tar.gz
-TreeSync-v1.0.0-osx-arm64.zip
-```
-
----
-
-# GitHub Release Workflow
-
-```yaml
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
-
-jobs:
-
-  release:
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        rid:
-          - win-x64
-          - linux-x64
-          - linux-arm64
-          - osx-arm64
-
-    steps:
-
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Publish
-        run: |
-          dotnet publish \
-            -c Release \
-            -r ${{ matrix.rid }} \
-            --self-contained true \
-            -p:PublishSingleFile=true \
-            -o publish/${{ matrix.rid }}
-
-      - name: Package
-        run: |
-          cd publish
-          zip -r ../TreeSync-${GITHUB_REF_NAME}-${{ matrix.rid }}.zip ${{ matrix.rid }}
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: |
-            TreeSync-${GITHUB_REF_NAME}-${{ matrix.rid }}.zip
-```
-
----
-
-# Empfohlene Repository-Einstellungen
-
-## Workflow Permissions
-
-GitHub → Settings → Actions → General
-
-```text
-Workflow permissions:
-Read and write permissions
-```
-
-## Branch Protection
-
-Main Branch schützen:
-
-* Pull Requests erforderlich
-* Erfolgreicher Build erforderlich
-* Direktes Pushen auf Main verhindern
-
----
-
-# Ergebnis
-
-Nach dem Push eines Release-Tags wird automatisch:
-
-1. Das Projekt gebaut
-2. Für jede Zielplattform veröffentlicht
-3. Ein GitHub Release erstellt
-4. Die Binärartefakte angehängt
-5. Automatische Release Notes generiert
-
-Dadurch steht jede veröffentlichte Version von TreeSync unmittelbar über GitHub Releases zum Download bereit.
+* 🔢 automatische Versionierung via GitVersion oder Nerdbank.GitVersioning
+* 🧾 CHANGELOG auto generation
+* 🔐 Code Signing für Windows EXE
+* 📦 Installer (MSI / DEB / Homebrew tap)
+* ⚡ rolling pre-releases (`v1.2.0-beta.1`)
