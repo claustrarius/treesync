@@ -86,6 +86,22 @@ Mindestens:
 
 ---
 
+## Default Namespace
+
+Der Default Namespace aller Projekte ist:
+
+```
+clausTrarius.TreeSync
+```
+
+Modulbezogene Namespaces müssen davon abgeleitet werden, zum Beispiel:
+
+- `clausTrarius.TreeSync.Cli`
+- `clausTrarius.TreeSync.Core`
+- `clausTrarius.TreeSync.Tests`
+
+---
+
 ## Pfadbehandlung
 
 Immer verwenden:

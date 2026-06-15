@@ -35,6 +35,17 @@ Das Zielverzeichnis stellt damit stets eine synchronisierte Kopie der Quelle dar
 - Programmiersprache: C#
 - Runtime/SDK: .NET 10
 - Anwendungstyp: .NET Console App
+- Default Namespace: `clausTrarius.TreeSync`
+
+---
+
+## Projektstruktur
+
+Der Code folgt der Architektur aus `docs/architecture.md`:
+
+- `src/TreeSync.Cli`: CLI-Parsing, Top-Level-Fehlerbehandlung und Exitcodes
+- `src/TreeSync.Core`: Konfiguration, Logging, Ignore-Regeln, Scanning, Vergleich, Safety und Sync-Engine
+- `tests/TreeSync.Tests`: xUnit-Tests für die zentralen Komponenten
 
 ---
 
@@ -69,6 +80,24 @@ treesync --source ./src --target /var/www/app --dry-run
 ```
 
 Zeigt alle Aktionen an, ohne Änderungen vorzunehmen.
+
+---
+
+## Build und Tests
+
+```
+dotnet build treesync.sln
+dotnet test treesync.sln
+```
+
+---
+
+## Exitcodes
+
+- `0`: Erfolg
+- `1`: CLI- oder Konfigurationsfehler
+- `2`: Sicherheitsprüfung fehlgeschlagen
+- `3`: unerwarteter Laufzeitfehler
 
 ---
 

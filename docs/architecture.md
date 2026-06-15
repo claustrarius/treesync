@@ -59,6 +59,22 @@ treesync/
 
 ---
 
+## Default Namespace
+
+Der Default Namespace des Projekts lautet:
+
+```
+clausTrarius.TreeSync
+```
+
+Die Teilprojekte verwenden daraus abgeleitete Namespaces:
+
+- `clausTrarius.TreeSync.Cli`
+- `clausTrarius.TreeSync.Core`
+- `clausTrarius.TreeSync.Tests`
+
+---
+
 ## Program.cs
 
 Startpunkt der Anwendung.
