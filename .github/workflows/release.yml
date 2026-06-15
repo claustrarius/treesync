@@ -2,16 +2,17 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
 
   build:
-
     runs-on: ubuntu-latest
 
     strategy:
@@ -27,14 +28,17 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+          cache: true
 
-      - name: Extract version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      - name: Restore
+        run: dotnet restore src/TreeSync.Cli/TreeSync.Cli.csproj
 
       - name: Publish
         run: |
@@ -43,19 +47,19 @@ jobs:
             -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
-            -p:Version=$VERSION \
             -o publish/${{ matrix.rid }}
 
       - name: Package
         run: |
           cd publish/${{ matrix.rid }}
-          zip -r ../../TreeSync-${{ env.VERSION }}-${{ matrix.rid }}.zip .
+          zip -r ../../TreeSync-${{ matrix.rid }}.zip .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TreeSync-${{ matrix.rid }}
           path: TreeSync-*.zip
+
 
   release:
 
@@ -64,13 +68,27 @@ jobs:
 
     steps:
 
-      - name: Download all artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          generate_release_notes: true
-          files: dist/**/*.zip
+          node-version: 20
+
+      - name: Install semantic-release
+        run: |
+          npm init -y
+          npm install semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
