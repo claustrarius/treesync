@@ -63,6 +63,48 @@ Der Code folgt der Architektur aus `docs/architecture.md`:
 
 ---
 
+## Nutzung als EXE
+
+Für ein direkt startbares Windows-Executable muss das CLI-Projekt veröffentlicht werden:
+
+```powershell
+dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj `
+  -c Release `
+  -p:PublishProfile=win-x64-folder
+```
+
+Die erzeugten Dateien liegen danach hier:
+
+```text
+publish/TreeSync.exe
+publish/TreeSync.dll
+```
+
+Nach dem Publish kann `TreeSync.exe` direkt ohne Sourcecode verwendet werden.
+
+```powershell
+.\TreeSync.exe `
+  --source "C:\pfad\zur\quelle" `
+  --target "C:\pfad\zum\ziel" `
+  --config "C:\pfad\zur\quelle\config.json" `
+  --ignore "C:\pfad\zur\quelle\.treesyncignore" `
+  --log "treesync.log" `
+  --log-level info
+```
+
+`--config`, `--ignore`, `--log` und `--log-level` sind optional.
+
+Dry Run:
+
+```powershell
+.\TreeSync.exe `
+  --source "C:\pfad\zur\quelle" `
+  --target "C:\pfad\zum\ziel" `
+  --dry-run
+```
+
+---
+
 ## Beispielaufruf
 
 ```
@@ -103,6 +145,8 @@ Zeigt alle Aktionen an, ohne Änderungen vorzunehmen.
 dotnet build src/TreeSync.Cli/TreeSync.Cli.csproj
 dotnet test tests/TreeSync.Tests/TreeSync.Tests.csproj
 ```
+
+`dotnet build` ist für Entwicklung und Tests gedacht. Für eine verteilbare `.exe` bitte `dotnet publish` wie oben verwenden.
 
 ---
 
