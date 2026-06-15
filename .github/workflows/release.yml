@@ -2,92 +2,47 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+    branches: [main]
 
 jobs:
-
-  build:
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        rid:
-          - win-x64
-          - linux-x64
-          - linux-arm64
-          - osx-arm64
-
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Restore
-        run: dotnet restore TreeSync.sln
-
-      - name: Publish
-        run: |
-          dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj \
-            -c Release \
-            -r ${{ matrix.rid }} \
-            --self-contained true \
-            -p:PublishSingleFile=true \
-            -o publish/${{ matrix.rid }}
-
-      - name: Package
-        run: |
-          cd publish/${{ matrix.rid }}
-          zip -r ../../TreeSync-${{ matrix.rid }}.zip .
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: TreeSync-${{ matrix.rid }}
-          path: TreeSync-*.zip
-
-
   release:
-
-    needs: build
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-
+      # 📦 Node for semantic-release
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Install semantic-release
+      # 📦 Install semantic-release
+      - name: Install dependencies
         run: |
           npm init -y
-          npm install semantic-release @semantic-release/changelog @semantic-release/github
+          npm install semantic-release \
+            @semantic-release/changelog \
+            @semantic-release/github
 
-      - name: Run semantic-release
+      # 🚀 Run release (creates tag + GitHub release)
+      - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      # 📥 Download artifacts from build workflow (latest successful main run)
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      # 📤 Attach binaries to GitHub Release
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.zip
+            dist/**/*.sha256

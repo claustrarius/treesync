@@ -1,0 +1,64 @@
+name: Build Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rid: [linux-x64, linux-arm64, win-x64, osx-arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      # 🧠 Version aus Git (Fallback wenn kein Release-Tag existiert)
+      - name: Compute version
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always || echo "0.0.0-dev")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 🏗️ Publish
+      - name: Publish
+        run: |
+          dotnet publish src/TreeSync/TreeSync.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            /p:Version=${{ steps.version.outputs.version }} \
+            -o dist/${{ matrix.rid }}
+
+      # 📦 ZIP packaging
+      - name: Create ZIP
+        run: |
+          cd dist/${{ matrix.rid }}
+          zip -r ../TreeSync-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip .
+
+      # 🔐 SHA256 checksum
+      - name: Generate checksum
+        run: |
+          cd dist
+          sha256sum TreeSync-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip \
+            > TreeSync-${{ steps.version.outputs.version }}-${{ matrix.rid }}.sha256
+
+      # 📤 Upload artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TreeSync-${{ matrix.rid }}
+          path: |
+            dist/*.zip
+            dist/*.sha256

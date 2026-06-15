@@ -15,4 +15,10 @@
     <RootNamespace>clausTrarius.TreeSync</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
 </Project>
