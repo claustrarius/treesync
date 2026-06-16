@@ -28,13 +28,20 @@ jobs:
       - name: Compute version
         id: version
         run: |
-          VERSION=$(git describe --tags --always || echo "0.0.0-dev")
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="${TAG#v}"
+          else
+            VERSION="0.0.0-dev.${GITHUB_RUN_NUMBER}"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # 🏗️ Publish
       - name: Publish
         run: |
-          dotnet publish src/TreeSync/TreeSync.csproj \
+          dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
@@ -44,6 +51,10 @@ jobs:
       # 📦 ZIP packaging
       - name: Create ZIP
         run: |
+          if [[ "${{ matrix.rid }}" != win-* ]]; then
+            chmod +x dist/${{ matrix.rid }}/TreeSync
+          fi
+
           cd dist/${{ matrix.rid }}
           zip -r ../TreeSync-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip .
 
