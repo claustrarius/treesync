@@ -2,96 +2,88 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Validate version tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Release tags must match vMAJOR.MINOR.PATCH. Got '$tag'."
+          }
+
+          $version = $tag.Substring(1)
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "zip_name=TreeSync-$version-win-x64.zip" >> $env:GITHUB_OUTPUT
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
 
-      # 📦 Node for semantic-release
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      - name: Restore
+        run: dotnet restore TreeSync.sln
 
-      # 📦 Install semantic-release
-      - name: Install dependencies
+      - name: Build
+        run: dotnet build TreeSync.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test TreeSync.sln --configuration Release --no-build
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -p:InformationalVersion=${{ steps.version.outputs.version }}
+          --output artifacts/publish/win-x64
+
+      - name: Smoke test
+        shell: pwsh
+        run: .\artifacts\publish\win-x64\TreeSync.exe --help
+
+      - name: Create ZIP artifact
+        shell: pwsh
         run: |
-          npm init -y
-          npm install semantic-release \
-            @semantic-release/changelog \
-            @semantic-release/github
+          New-Item -ItemType Directory -Force artifacts/package, dist | Out-Null
+          Copy-Item artifacts/publish/win-x64/TreeSync.exe artifacts/package/
+          Copy-Item README.md artifacts/package/
+          Compress-Archive `
+            -Path artifacts/package/* `
+            -DestinationPath "dist/${{ steps.version.outputs.zip_name }}" `
+            -Force
 
-      # 🚀 Run release (creates tag + GitHub release)
-      - name: Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
-
-      - name: Resolve release tag
-        id: release
-        shell: bash
-        run: |
-          tag="$(git tag --points-at HEAD | sort -V | tail -n 1)"
-
-          if [ -z "$tag" ]; then
-            echo "published=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "published=true" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-      - name: Build release assets
-        if: steps.release.outputs.published == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          tag="${{ steps.release.outputs.tag }}"
-          version="${tag#v}"
-          rids=(linux-x64 linux-arm64 win-x64 osx-arm64)
-
-          for rid in "${rids[@]}"; do
-            dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj \
-              -c Release \
-              -r "$rid" \
-              --self-contained true \
-              /p:Version="$version" \
-              -o "dist/$rid"
-
-            if [[ "$rid" != win-* ]]; then
-              chmod +x "dist/$rid/TreeSync"
-            fi
-
-            (cd "dist/$rid" && zip -r "../TreeSync-${tag}-${rid}.zip" .)
-            sha256sum "dist/TreeSync-${tag}-${rid}.zip" > "dist/TreeSync-${tag}-${rid}.sha256"
-          done
-
-      # 📤 Attach binaries to GitHub Release
-      - name: Upload Release Assets
-        if: steps.release.outputs.published == 'true'
+      - name: Create draft GitHub release
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.release.outputs.tag }}
-          files: |
-            dist/*.zip
-            dist/*.sha256
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: TreeSync ${{ steps.version.outputs.version }}
+          draft: true
+          generate_release_notes: false
+          body: |
+            Draft release for TreeSync ${{ steps.version.outputs.version }}.
+
+            Review release notes manually against CHANGELOG.md before publishing.
+          files: dist/${{ steps.version.outputs.zip_name }}
           fail_on_unmatched_files: true

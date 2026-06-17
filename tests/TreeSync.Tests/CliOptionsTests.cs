@@ -43,6 +43,15 @@ public sealed class CliOptionsTests
     }
 
     [Fact]
+    public void Parse_AcceptsHelpWithoutRequiredParameters()
+    {
+        CliOptions options = CliOptions.Parse(new[] { "--help" });
+
+        Assert.True(options.HelpRequested);
+        Assert.Contains("Usage:", CliOptions.GetHelpText());
+    }
+
+    [Fact]
     public void Parse_RejectsMissingRequiredParameters()
     {
         Assert.Throws<CliOptionsException>(() => CliOptions.Parse(Array.Empty<string>()));

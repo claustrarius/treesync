@@ -14,6 +14,12 @@ public static class ProgramRunner
         try
         {
             CliOptions options = CliOptions.Parse(args);
+            if (options.HelpRequested)
+            {
+                Console.Out.WriteLine(CliOptions.GetHelpText());
+                return 0;
+            }
+
             TreeSyncConfig config = TreeSyncConfig.Load(options.ConfigPath);
             TreeSyncLogLevel logLevel = options.LogLevelOverride ?? config.LogLevel;
 

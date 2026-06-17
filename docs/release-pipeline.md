@@ -1,146 +1,177 @@
-# TreeSync Release Pipeline
+# Release Pipeline
 
-Dieses Dokument beschreibt den offiziellen Release-Prozess für TreeSync.
+Dieses Dokument beschreibt den Release-Prozess für TreeSync.
 
----
+## Überblick
 
-# 🔄 Überblick
+TreeSync verwendet GitHub Actions für CI und Release-Erstellung. Releases sind tag-getrieben:
 
-TreeSync verwendet eine GitHub Actions basierte CI/CD Pipeline.
-Der Prozess ist vollständig tag-getrieben:
-
-```
+```powershell
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-→ triggert automatisch einen Release
+Ein Tag im Format `vMAJOR.MINOR.PATCH` erstellt automatisch einen GitHub Draft Release.
 
----
+## Projektanpassungen
 
-# ⚙️ Build Pipeline (CI)
+Für die GitHub-Pipeline verwendet TreeSync die moderne .NET-Toolchain:
 
-Bei jedem Push auf `main` und bei Pull Requests:
+- `TreeSync.Cli.csproj`, `TreeSync.Core.csproj` und `TreeSync.Tests.csproj` sind SDK-style-Projekte
+- Ziel-Framework ist `net10.0`
+- Assembly-Metadaten liegen in den Projektdateien
+- `AssemblyVersion` und `FileVersion` bleiben stabil auf `1.0.0.0`
+- Die Release-Version wird erst beim Publish über `InformationalVersion` gesetzt
+- `App.config` wird nicht benötigt
+- `Properties/AssemblyInfo.cs` wird nicht benötigt
 
-- Restore
-- Build (Release)
-- Tests ausführen
+Das Release-Artefakt wird bewusst als Windows-x64-EXE gebaut, weil die erste Distribution als direkt startbare Windows-CLI erfolgen soll.
 
-Kein Publish erfolgt in dieser Phase.
+## Workflow-Dateien
 
----
+Die Pipeline besteht aus zwei GitHub Actions Workflows:
 
-# 🚀 Release Pipeline
-
-Die Release Pipeline wird durch Git Tags ausgelöst:
-
+```text
+.github/workflows/ci.yml
+.github/workflows/release.yml
 ```
+
+`ci.yml` prüft jede Änderung auf `main` und in Pull Requests. `release.yml` erstellt ausschließlich für Versionstags einen GitHub Draft Release.
+
+## CI
+
+Der CI-Workflow läuft bei jedem Push auf `main` und bei Pull Requests gegen `main`.
+
+Ablauf:
+
+1. Repository auschecken
+2. .NET 10 SDK installieren
+3. `dotnet restore TreeSync.sln`
+4. `dotnet build TreeSync.sln --configuration Release`
+5. `dotnet test TreeSync.sln --configuration Release`
+6. Windows-x64-Artefakt veröffentlichen
+7. Smoke-Test mit `TreeSync.exe --help`
+
+Die CI erstellt keinen GitHub Release.
+
+Der Publish-Schritt in der CI dient nur dem Smoke-Test. Dadurch wird geprüft, ob das spätere Release-Artefakt grundsätzlich gebaut und gestartet werden kann.
+
+## Release
+
+Der Release-Workflow läuft nur bei Tags:
+
+```text
 v1.0.0
 v1.1.0
 v2.0.0
 ```
 
-## Ablauf
+Ablauf:
 
-1. Git Tag wird gepusht
-2. GitHub Actions startet Matrix Build
-3. Builds werden erstellt für:
+1. Tag wird gepusht
+2. GitHub Actions startet den Release-Workflow
+3. TreeSync wird für `win-x64` veröffentlicht
+4. Das Artefakt wird self-contained und als Single-File-EXE gebaut
+5. Die veröffentlichte EXE wird mit `--help` gestartet
+6. EXE und README werden in ein ZIP gepackt
+7. GitHub Release wird als Draft erstellt
+8. ZIP wird an den Draft Release angehängt
+9. Release Notes werden manuell anhand von `CHANGELOG.md` geprüft und veröffentlicht
 
-- win-x64
-- linux-x64
-- linux-arm64
-- osx-arm64
+## Artefakt
 
-4. Jede Plattform wird:
+Für Tag `v1.2.3` entsteht:
 
-- published (`dotnet publish`)
-- self-contained gebaut
-- single-file executable erzeugt
-- in ZIP archiviert
-
----
-
-# 📦 Output Artefakte
-
-Nach dem Release entstehen folgende Dateien:
-
-```
-TreeSync-1.0.0-win-x64.zip
-TreeSync-1.0.0-linux-x64.zip
-TreeSync-1.0.0-linux-arm64.zip
-TreeSync-1.0.0-osx-arm64.zip
+```text
+TreeSync-1.2.3-win-x64.zip
 ```
 
-Jede ZIP enthält:
+Das ZIP enthält:
 
-- TreeSync executable
-- benötigte runtime files (falls vorhanden)
-- Konfigurationsdateien
+- `TreeSync.exe`
+- `README.md`
 
----
+Die EXE ist self-contained und benötigt auf dem Zielsystem keine installierte .NET Runtime.
 
-# 🧪 Runtime
+## Versionierung
 
-TreeSync ist:
+Die Release-Version wird ausschließlich über den Git-Tag definiert:
 
-- self-contained
-- benötigt keine .NET Installation
-- direkt ausführbar
-
----
-
-# 🏷 Versionierung
-
-Die Version wird ausschließlich über Git Tags definiert:
-
-```
+```text
 vMAJOR.MINOR.PATCH
 ```
 
+Die führende `v` wird für Dateinamen und `InformationalVersion` entfernt. `AssemblyVersion` und `FileVersion` bleiben stabil, damit die Assembly-Kompatibilität nicht an Release-Tags gekoppelt ist.
+
 Beispiel:
 
+```text
+Tag:                  v1.2.3
+InformationalVersion: 1.2.3
+ZIP-Datei:            TreeSync-1.2.3-win-x64.zip
 ```
-v1.3.0
+
+## Lokale Validierung
+
+Vor dem Commit oder vor einem Release sollten die gleichen Kernschritte lokal ausführbar sein:
+
+```powershell
+dotnet restore TreeSync.sln
+dotnet build TreeSync.sln --configuration Release
+dotnet test TreeSync.sln --configuration Release
+dotnet publish src/TreeSync.Cli/TreeSync.Cli.csproj `
+  --configuration Release `
+  --runtime win-x64 `
+  --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:EnableCompressionInSingleFile=true `
+  -p:DebugType=none `
+  -p:DebugSymbols=false
 ```
 
----
+Optionaler Smoke-Test nach lokalem Publish:
 
-# 📤 Release Erstellung
+```powershell
+.\src\TreeSync.Cli\bin\Release\net10.0\win-x64\publish\TreeSync.exe --help
+```
 
-Release erfolgt automatisch via GitHub Actions:
+## Changelog und Release Notes
 
-- GitHub Release wird erstellt
-- Artefakte werden angehängt
-- Automatische Release Notes werden generiert
+`CHANGELOG.md` ist die menschlich gepflegte Quelle für Release Notes. Neue Änderungen werden zunächst unter `## [Unreleased]` gesammelt und vor dem Release in einen versionierten Abschnitt verschoben.
 
----
+Der Release-Workflow veröffentlicht den GitHub Release nicht direkt. Er erstellt einen Draft Release mit Artefakt, damit die Release Notes vor der Veröffentlichung anhand von `CHANGELOG.md` geprüft und bei Bedarf angepasst werden können.
 
-# 🧠 Designentscheidungen
+Details zum Changelog-Prozess stehen in [`docs/versioning.md`](versioning.md).
 
-- Kein NuGet Paket
-- Fokus auf CLI/EXE Distribution
-- Cross-platform Builds
-- Self-contained deployment
-- Single-file binaries für einfache Nutzung
+## Release-Erstellung
 
----
+Eine detaillierte Schritt-für-Schritt-Anleitung zum Erstellen eines Releases findest du in [`docs/create-release.md`](create-release.md).
 
-# 🔐 Reproduzierbarkeit
+Kurzfassung: Ein Release wird lokal vorbereitet, indem der gewünschte Commit auf `main` getaggt wird:
 
-Alle Builds sind deterministisch über:
+```powershell
+git tag v1.2.3
+git push origin v1.2.3
+```
 
-- Git Tag
-- Fixed SDK Version (.NET 10)
-- GitHub Actions Runner
+Der Push des Tags startet den Release-Workflow. Der Workflow erzeugt das ZIP-Artefakt und hängt es an den automatisch erstellten Draft Release an.
 
----
+Da der Remote-Zugriff per SSH-Key passphrase-geschützt ist, müssen `git push`, `git pull` und `git fetch` in einer lokal freigegebenen Shell ausgeführt werden.
 
-# 🚀 Optional (empfohlen für später)
+## Designentscheidungen
 
-Für "Enterprise-grade" als nächste Schritte:
+- Kein NuGet-Paket
+- Distribution als CLI/EXE
+- Windows-x64-Release-Artefakt für die erste Distribution
+- Self-contained Single-File-Binary für einfache Nutzung
+- Tests plus Smoke-Test gegen die veröffentlichte EXE
+- Draft Release statt automatischer Veröffentlichung
 
-* 🔢 automatische Versionierung via GitVersion oder Nerdbank.GitVersioning
-* 🧾 CHANGELOG auto generation
-* 🔐 Code Signing für Windows EXE
-* 📦 Installer (MSI / DEB / Homebrew tap)
-* ⚡ rolling pre-releases (`v1.2.0-beta.1`)
+## Reproduzierbarkeit
+
+Releases werden bestimmt durch:
+
+- Git-Tag
+- .NET 10 SDK (`10.0.x`)
+- GitHub Actions Runner `windows-latest`
+- Runtime Identifier `win-x64`

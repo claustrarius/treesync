@@ -11,7 +11,8 @@ public sealed class CliOptions
         string ignorePath,
         string logFilePath,
         TreeSyncLogLevel? logLevelOverride,
-        bool dryRun)
+        bool dryRun,
+        bool helpRequested)
     {
         SourcePath = sourcePath;
         TargetPath = targetPath;
@@ -20,6 +21,7 @@ public sealed class CliOptions
         LogFilePath = logFilePath;
         LogLevelOverride = logLevelOverride;
         DryRun = dryRun;
+        HelpRequested = helpRequested;
     }
 
     public string SourcePath { get; }
@@ -36,6 +38,8 @@ public sealed class CliOptions
 
     public bool DryRun { get; }
 
+    public bool HelpRequested { get; }
+
     public static CliOptions Parse(string[] args, string? currentDirectory = null)
     {
         currentDirectory ??= Directory.GetCurrentDirectory();
@@ -46,6 +50,19 @@ public sealed class CliOptions
         for (int index = 0; index < args.Length; index++)
         {
             string argument = args[index];
+
+            if (IsHelpOption(argument))
+            {
+                return new CliOptions(
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    null,
+                    false,
+                    helpRequested: true);
+            }
 
             if (string.Equals(argument, "--dry-run", StringComparison.OrdinalIgnoreCase))
             {
@@ -93,7 +110,30 @@ public sealed class CliOptions
             Path.GetFullPath(ignorePath),
             Path.GetFullPath(logFilePath),
             logLevelOverride,
-            dryRun);
+            dryRun,
+            helpRequested: false);
+    }
+
+    public static string GetHelpText()
+    {
+        return """
+            TreeSync - synchronizes filtered source files into a target directory.
+
+            Usage:
+              TreeSync --source <path> --target <path> [options]
+
+            Required:
+              --source <path>       Source directory
+              --target <path>       Target directory
+
+            Options:
+              --config <file>       Config file, defaults to <source>/config.json
+              --ignore <file>       Ignore file, defaults to <source>/.treesyncignore
+              --log <file>          Log file, defaults to treesync.log
+              --log-level <level>   error, info, or debug
+              --dry-run             Log planned actions without changing files
+              --help                Show this help text
+            """;
     }
 
     private static string Require(IReadOnlyDictionary<string, string?> values, string optionName)
@@ -109,5 +149,10 @@ public sealed class CliOptions
     private static bool IsKnownValueOption(string option)
     {
         return option is "--source" or "--target" or "--config" or "--ignore" or "--log" or "--log-level";
+    }
+
+    private static bool IsHelpOption(string option)
+    {
+        return option is "--help" or "-h" or "/?";
     }
 }
