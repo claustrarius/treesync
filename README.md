@@ -77,10 +77,9 @@ Die erzeugten Dateien liegen danach hier:
 
 ```text
 publish/TreeSync.exe
-publish/TreeSync.dll
 ```
 
-Nach dem Publish kann `TreeSync.exe` direkt ohne Sourcecode verwendet werden.
+Nach dem Publish kann `TreeSync.exe` direkt ohne Sourcecode und ohne installierte .NET Runtime verwendet werden.
 
 ```powershell
 .\TreeSync.exe `
@@ -142,11 +141,25 @@ Zeigt alle Aktionen an, ohne Änderungen vorzunehmen.
 ## Build und Tests
 
 ```
-dotnet build src/TreeSync.Cli/TreeSync.Cli.csproj
-dotnet test tests/TreeSync.Tests/TreeSync.Tests.csproj
+dotnet restore TreeSync.sln
+dotnet build TreeSync.sln --configuration Release
+dotnet test TreeSync.sln --configuration Release
 ```
 
 `dotnet build` ist für Entwicklung und Tests gedacht. Für eine verteilbare `.exe` bitte `dotnet publish` wie oben verwenden.
+
+---
+
+## Release
+
+Releases werden über Git-Tags im Format `vMAJOR.MINOR.PATCH` erstellt:
+
+```powershell
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Der Tag-Push startet den GitHub Actions Release-Workflow. Details stehen in `docs/release-pipeline.md` und `docs/create-release.md`.
 
 ---
 
