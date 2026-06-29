@@ -1,0 +1,19 @@
+{
+  "include_extensions": [
+    ".php",
+    ".js",
+    ".css",
+	".html",
+    ".jpg",
+    ".png",
+    ".woff",
+    ".woff2",
+    ".treesyncme",
+	".htaccess",
+	".conf"
+	
+  ],
+  "logging": {
+    "level": "info"
+  }
+}
