@@ -1,0 +1,4 @@
+treesync-config.json
+treesync-ignore.txt
+.treesyncignore
+treesync.log
